@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "spire-agent.fullname" . }}-test-connection"
+  labels:
+    app.kubernetes.io/name: {{ include "spire-agent.name" . }}
+    helm.sh/chart: {{ include "spire-agent.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args:  ['{{ include "spire-agent.fullname" . }}:{{ .Values.service.port }}']
+  restartPolicy: Never

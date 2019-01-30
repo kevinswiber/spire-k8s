@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "spire-server.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "spire-server.name" . }}
+    helm.sh/chart: {{ include "spire-server.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "spire-server.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "spire-server.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["/bin/bash", "-c", "/opt/spire/bin/spire-server run -config /run/spire/config/server.conf"]
+          ports:
+            - name: grpc
+              containerPort: 8081
+              protocol: TCP
+          volumeMounts:
+            - name: spire-config
+              mountPath: /run/spire/config
+              readOnly: true
+            - name: spire-secrets
+              mountPath: /run/spire/secrets
+              readOnly: true
+            - name: spire-data
+              mountPath: /run/spire/data
+              readOnly: false
+            - name: k8s-sa-cert
+              mountPath: /run/k8s-certs/sa.pub
+              readOnly: true
+          livenessProbe:
+            failureThreshold: 2
+            tcpSocket:
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 60
+            timeoutSeconds: 3
+      volumes:
+        - name: spire-config
+          configMap:
+            name: {{ include "spire-server.fullname" . }}
+            items:
+              - key: server.conf
+                path: server.conf
+              - key: bootstrap.crt
+                path: bootstrap.crt
+        - name: spire-secrets
+          secret:
+            secretName: spire-server
+        - name: spire-data
+          hostPath:
+            # NOTE: This should be a persistent volume on the master node's host
+            path: /opt/spire/data
+            type: DirectoryOrCreate
+        - name: k8s-sa-cert
+          hostPath:
+            # NOTE: Change to the kube-apiserver's service account certificate
+            path: /var/lib/minikube/certs/sa.pub
+            type: File
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

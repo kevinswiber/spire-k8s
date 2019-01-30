@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "spire-server.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "spire-server.name" . }}
+    helm.sh/chart: {{ include "spire-server.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 8081
+      protocol: TCP
+      name: grpc
+  selector:
+    app.kubernetes.io/name: {{ include "spire-server.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
